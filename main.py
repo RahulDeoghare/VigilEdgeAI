@@ -19,8 +19,8 @@ from deep_sort_realtime.deepsort_tracker import DeepSort
 # Configuration
 CROSSING_TOLERANCE = 10  # Pixels, tolerance for line crossing detection
 MODEL_CONFIG = {
-    "1": {"name": "vehicleInOut", "classes": [2, 5, 7, 80]},  # Classes: 2=car, 5=bus, 7=truck, 80=person
-    "2": {"name": "anpr", "classes": [2, 5, 7, 80]}
+    "1": {"name": "vehicleInOut", "classes": [2, 5, 7]},  # Classes: 2=car, 5=bus, 7=truck, 80=night
+    "2": {"name": "anpr", "classes": [2, 5, 7]}
 }
 SPECIFIC_CAMERA_ID = "53b3850d-e0ef-4668-9fb5-12c980aac83d"  # Camera ID for swap directions
 DEFAULT_API_IP = "192.168.1.29:8001"  # Fallback API IP
@@ -41,7 +41,7 @@ DATA_DIR = BASE_DIR / "data"
 OUTPUT_DIR = DATA_DIR / "screenshots"
 JSON_DIR = DATA_DIR / "logs"
 ROI_CONFIG_DIR = DATA_DIR / "roi_configs"
-VEHICLE_MODEL_PATH = BASE_DIR / "models" / "best.pt"
+VEHICLE_MODEL_PATH = BASE_DIR / "models" / "yolov8x.pt"
 ANPR_MODEL_PATH = BASE_DIR / "models" / "ANPR.pt"
 
 # Ensure directories exist
@@ -194,10 +194,13 @@ def save_screenshot(frame, camera_id, timestamp, prefix):
     finally:
         gc.collect()
 
-def detect_number_plate(frame, bbox):
+def detect_number_plate(frame, bbox, height):
     """Detect number plate in the cropped vehicle region (for ANPR)."""
     try:
         x1, y1, x2, y2 = map(int, bbox)
+        # Only process if the bounding box is in the bottom 60% of the frame
+        if y2 < height * 0.5:
+            return None, None
         padding = 20
         x1 = max(0, x1 - padding)
         y1 = max(0, y1 - padding)
@@ -253,7 +256,7 @@ def determine_crossing_anpr(prev_centroid, curr_centroid, a, b, c, frame, bbox, 
                 if last_timestamp is None or (timestamp - last_timestamp).total_seconds() > SCREENSHOT_TIME_WINDOW:
                     vehicle_filename = save_screenshot(frame, camera_id, timestamp, "enter_")
                     plate_filename = None
-                    plate_bbox, _ = detect_number_plate(frame, bbox)
+                    plate_bbox, _ = detect_number_plate(frame, bbox, shared_state["height"])
                     if plate_bbox:
                         plate_filename = save_screenshot(frame, camera_id, timestamp, "plate_enter_")
                     shared_state["last_screenshot_timestamps"]["anpr_enter"] = timestamp
@@ -296,6 +299,9 @@ def determine_crossing_vehicle(tracks, a, b, c, frame, camera_id, camera_info, s
         for track in tracks:
             track_id = track.track_id
             bbox = track.to_tlbr()  # [x1, y1, x2, y2]
+            # Only process if the bounding box is in the bottom 60% of the frame
+            if bbox[3] < shared_state["height"] * 0.5:
+                continue
             centroid = calculate_centroid(bbox)
            
             # Initialize track state if not present
@@ -534,10 +540,13 @@ def process_camera(camera, model_ids):
             for model_id in model_ids:
                 model_state = camera_states[camera_id][model_id]
                
-                # Perform vehicle detection on full frame
+                # Perform vehicle detection on bottom 60% of the frame
                 try:
-                    results = vehicle_model(frame, classes=MODEL_CONFIG[model_id]["classes"])
+                    detection_region = frame[int(height * 0.5):, :]
+                    results = vehicle_model(detection_region, classes=MODEL_CONFIG[model_id]["classes"])
                     detections = results[0].boxes.data.cpu().numpy()
+                    # Adjust detection coordinates to full frame
+                    detections[:, [1, 3]] += int(height * 0.4)  # Adjust y1 and y2
                     logger.info(f"Camera {camera_id} - Model {model_id} - Frame processed: {len(detections)} vehicle detections")
                 except Exception as e:
                     error_msg = f"Vehicle detection failed for camera {camera_id}, model {model_id}: {e}"
