@@ -1,0 +1,77 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+vms/
+venv/
+env/
+ENV/
+.venv/
+.env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data directories (you might want to keep these local)
+data/logs/
+data/screenshots/
+*.log
+
+# Model files (these are usually large) - keep folder structure but exclude model files
+models/*.pt
+models/*.onnx
+models/*.pth
+models/*.weights
+models/*.bin
+# Keep models folder structure
+!models/
+!models/.gitkeep
+
+# Video files
+*.mp4
+*.avi
+*.mov
+*.mkv
+
+# Dataset images (these can be large)
+Dataset/
+*.jpg
+*.jpeg
+*.png
+*.bmp
+*.tiff
+
+# Temporary files
+*.tmp
+*.temp
+
+# JSON config files with sensitive data
+*_roi.json
