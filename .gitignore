@@ -46,11 +46,11 @@ data/screenshots/
 *.log
 
 # Model files (these are usually large) - keep folder structure but exclude model files
-models/*.pt
-models/*.onnx
-models/*.pth
-models/*.weights
-models/*.bin
+# models/*.pt
+# models/*.onnx
+# models/*.pth
+# models/*.weights
+# models/*.bin
 # Keep models folder structure
 !models/
 !models/.gitkeep
